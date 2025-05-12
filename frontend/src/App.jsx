@@ -1,40 +1,97 @@
-import { useEffect, useState } from "react";
-import "./App.css";
-import { GetTabs, ActivateTab } from "../wailsjs/go/main/App";
+import { useEffect, useRef, useState } from 'react';
+import { GetTabs, ActivateTab } from '../wailsjs/go/main/App';
+import './App.css';
 
-function App() {
+export default function App() {
+    const inputRef = useRef(null);
     const [tabs, setTabs] = useState([]);
-    const [search, setSearch] = useState("");
+    const [query, setQuery] = useState('');
+    const [highlightedIndex, setHighlightedIndex] = useState(0);
 
     useEffect(() => {
-        GetTabs().then(setTabs);
+        inputRef.current?.focus();
+        GetTabs()
+            .then((t) => {
+                console.log('Tabs loaded:', t);
+                setTabs(t);
+            })
+            .catch((err) => {
+                console.error('Error loading tabs:', err);
+            });
     }, []);
 
-    const filtered = tabs.filter(tab =>
-        tab.title.toLowerCase().includes(search.toLowerCase())
+    const filteredTabs = tabs.filter((tab) =>
+        tab.title.toLowerCase().includes(query.toLowerCase())
     );
 
+    const handleKeyDown = (e) => {
+        if (e.key === 'Enter' && filteredTabs.length > 0) {
+            const topMatch = filteredTabs[highlightedIndex];
+            console.log('Activating tab:', topMatch);
+            ActivateTab(topMatch.id)
+                .then(() => console.log('Tab activated'))
+                .catch((err) => console.error('Activation failed:', err));
+        }
+
+        if (e.key === 'ArrowDown') {
+            setHighlightedIndex((prevIndex) =>
+                prevIndex + 1 < filteredTabs.length ? prevIndex + 1 : prevIndex
+            );
+        }
+
+        if (e.key === 'ArrowUp') {
+            setHighlightedIndex((prevIndex) =>
+                prevIndex > 0 ? prevIndex - 1 : prevIndex
+            );
+        }
+    };
+
     return (
-        <div className="container">
-            <h1>Browser Tab Switcher</h1>
+        <div style={{ padding: 20, background: '#111', height: '100vh', color: '#fff', marginTop: '5px' }}>
             <input
-                type="text"
+                ref={inputRef}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
                 placeholder="Search tabs..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="search"
+                style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '5px',
+                    background: '#222',
+                    color: '#fff',
+                    border: 'none',
+                    marginBottom: '10px',
+                }}
             />
+
             <ul>
-                {filtered.map((tab) => (
-                    <li key={tab.id} onClick={() => ActivateTab(tab.id)}>
-                        <strong>{tab.title}</strong>
-                        <div className="url">{tab.url}</div>
+                {filteredTabs.map((tab, index) => (
+                    <li
+                        key={tab.id}
+                        onClick={() => {
+                            console.log('Activating tab:', tab);
+                            ActivateTab(tab.id)
+                                .then(() => console.log('Tab activated'))
+                                .catch((err) => console.error('Activation failed:', err));
+                        }}
+                        style={{
+                            background: highlightedIndex === index ? '#444' : '#333',
+                            padding: '10px',
+                            marginBottom: '5px',
+                            borderRadius: '4px',
+                            listStyle: 'none',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        {tab.title}
+                        <p style={{ fontSize: '12px', color: '#aaa' }}>
+                            {tab.url}
+                        </p>
                     </li>
                 ))}
             </ul>
         </div>
     );
 }
-
-export default App;
 
